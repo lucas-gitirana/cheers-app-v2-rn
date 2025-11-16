@@ -1,60 +1,134 @@
-import React, { useEffect, useState } from 'react';
-import { View, FlatList, ActivityIndicator, StyleSheet, Text, RefreshControl } from 'react-native';
-import { fetchDrinksByCategory } from '../api/cocktailApi';
-import DrinkCard from '../components/DrinkCard';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  RefreshControl,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { fetchPopularDrinks, fetchTrendingDrinks } from "../api/cocktailApi";
+import DrinkCard from "../components/DrinkCard";
 
 export default function HomeScreen({ navigation }) {
-    const [drinks, setDrinks] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
+  const [popular, setPopular] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-    async function load() {
-        setLoading(true);
-        try {
-            const list = await fetchDrinksByCategory('Cocktail');
-            setDrinks(list);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
+  async function load() {
+    try {
+      const pop = await fetchPopularDrinks();
+      const trend = await fetchTrendingDrinks();
+
+      setPopular(pop);
+      setTrending(trend);
+    } catch (e) {
+      console.warn(e);
     }
+  }
 
-    useEffect(() => {
-        load();
-    }, []);
+  async function initialize() {
+    setLoading(true);
+    await load();
+    setLoading(false);
+  }
 
-    async function onRefresh() {
-        setRefreshing(true);
-        await load();
-        setRefreshing(false);
-    }
+  useEffect(() => {
+    initialize();
+  }, []);
 
-    function renderItem({ item }) {
-        return (
-            <DrinkCard
-                drink={item}
-                onPress={() => navigation.navigate('Detail', { id: item.idDrink })}
-            />
-        );
-    }
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
+  function renderItem({ item }) {
     return (
-        <View style={styles.container}>
-            {loading ? <ActivityIndicator size="large" style={{ marginTop: 20 }} /> : (
-                <FlatList
-                    data={drinks}
-                    keyExtractor={(item) => item.idDrink}
-                    renderItem={renderItem}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    ListEmptyComponent={<Text style={styles.empty}>Nenhum drink encontrado.</Text>}
-                />
-            )}
-        </View>
+      <DrinkCard
+        drink={item}
+        onPress={() => navigation.navigate("Detail", { id: item.idDrink })}
+      />
     );
+  }
+
+  if (loading) {
+    return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
+  }
+
+  return (
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <TouchableOpacity
+        style={styles.searchButton}
+        onPress={() => navigation.navigate("Search")}
+      >
+        <Text style={styles.searchButtonText}>
+          Procura por um drink especial?
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={styles.sectionTitle}>Drinks Populares</Text>
+
+      <FlatList
+        data={popular}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.idDrink}
+        renderItem={renderItem}
+        contentContainerStyle={styles.carousel}
+      />
+
+      <Text style={styles.sectionTitle}>Drinks Tendências</Text>
+
+      <FlatList
+        data={trending}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.idDrink}
+        renderItem={renderItem}
+        contentContainerStyle={styles.carousel}
+      />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f2f2f2' },
-    empty: { textAlign: 'center', marginTop: 20, color: '#555' },
+  container: {
+    backgroundColor: "#f2f2f2",
+    paddingVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 16,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  carousel: {
+    paddingLeft: 10,
+    paddingVertical: 10,
+  },
+  searchButton: {
+    backgroundColor: "#E53935",
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
 });
